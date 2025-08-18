@@ -1,0 +1,117 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  name          String
+  phone         String?
+  role          UserRole  @default(USER)
+  isVerified    Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  bookings      Booking[]
+  reviews       Review[]
+  venues        Venue[]   @relation("VenueOwner")
+}
+
+model Venue {
+  id            String    @id @default(uuid())
+  name          String
+  description   String
+  address       String
+  city          String
+  state         String
+  zipCode       String
+  latitude      Float?
+  longitude     Float?
+  amenities     String[]
+  images        String[]
+  pricePerHour  Float
+  openTime      String
+  closeTime     String
+  isActive      Boolean   @default(true)
+  ownerId       String
+  owner         User      @relation("VenueOwner", fields: [ownerId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  sports        Sport[]
+  bookings      Booking[]
+  reviews       Review[]
+  slots         Slot[]
+}
+
+model Sport {
+  id            String    @id @default(uuid())
+  name          String
+  icon          String?
+  venues        Venue[]
+}
+
+model Slot {
+  id            String    @id @default(uuid())
+  venueId       String
+  venue         Venue     @relation(fields: [venueId], references: [id])
+  date          DateTime
+  startTime     String
+  endTime       String
+  isAvailable   Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  
+  bookings      Booking[]
+}
+
+model Booking {
+  id            String         @id @default(uuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  venueId       String
+  venue         Venue          @relation(fields: [venueId], references: [id])
+  slotId        String
+  slot          Slot           @relation(fields: [slotId], references: [id])
+  status        BookingStatus  @default(PENDING)
+  totalAmount   Float
+  paymentStatus PaymentStatus  @default(PENDING)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Review {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  venueId       String
+  venue         Venue     @relation(fields: [venueId], references: [id])
+  rating        Int
+  comment       String?
+  createdAt     DateTime  @default(now())
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  VENUE_OWNER
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}

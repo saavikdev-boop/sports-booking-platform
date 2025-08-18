@@ -1,0 +1,90 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: sports-db
+    environment:
+      POSTGRES_USER: sports_user
+      POSTGRES_PASSWORD: sports_pass
+      POSTGRES_DB: sports_booking
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - sports-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sports_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: sports-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - sports-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: sports-backend
+    environment:
+      DATABASE_URL: postgresql://sports_user:sports_pass@postgres:5432/sports_booking
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: your-secret-key-change-this
+      NODE_ENV: development
+      PORT: 5000
+    ports:
+      - "5000:5000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - sports-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: sports-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:5000/api
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - sports-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: sports-proxy
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - sports-network
+
+volumes:
+  postgres_data:
+
+networks:
+  sports-network:
+    driver: bridge
